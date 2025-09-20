@@ -1,0 +1,62 @@
+You are an expert Python backend engineer.  
+Build a production-ready LangChain-based FastAPI backend with the following requirements:
+
+1. **Architecture & Folder Structure**
+   - Follow clean separation of concerns:
+     ```
+     backend/
+     ├── app/
+     │   ├── main.py              # FastAPI entrypoint
+     │   ├── api/
+     │   │   └── routes.py        # API endpoints
+     │   ├── core/
+     │   │   ├── config.py        # Settings, env variables
+     │   │   └── utils.py         # Helper functions
+     │   ├── services/
+     │   │   ├── llm_service.py   # Groq API wrapper with LangChain
+     │   │   └── search_service.py# Tavily search integration
+     │   └── chains/
+     │       └── rag_chain.py     # LLM + Tavily chain logic
+     ├── requirements.txt
+     └── README.md
+     ```
+
+2. **LLM (Groq API Integration)**
+   - Use Groq API as the LLM provider inside LangChain.
+   - Expose a simple wrapper in `llm_service.py`.
+
+3. **Search Tool (Tavily)**
+   - Integrate Tavily API via LangChain `TavilySearchResults`.
+   - Use it as an external knowledge retriever.
+
+4. **Chain**
+   - In `rag_chain.py`, create a retrieval-augmented chain that:
+     - Takes a user query.
+     - Calls Tavily for external context.
+     - Streams the answer back via Groq LLM.
+
+5. **FastAPI Endpoint**
+   - Implement `/chat` endpoint in `routes.py`.
+   - Use **Server-Sent Events (SSE)** to stream the LLM output token by token.
+   - Example:
+     ```python
+     @router.get("/chat")
+     async def chat(query: str):
+         return EventSourceResponse(stream_generator(query))
+     ```
+
+6. **Streaming**
+   - Use LangChain’s async streaming callbacks to yield tokens.
+   - Ensure graceful error handling and SSE compliance.
+
+7. **Configuration**
+   - Load API keys for Groq and Tavily from `.env`.
+   - Add config management in `config.py`.
+
+8. **Dependencies**
+   - Add `langchain`, `fastapi`, `sse-starlette`, `httpx`, `python-dotenv`.
+
+Deliverables:
+- Full Python code for all key files (`main.py`, `routes.py`, `llm_service.py`, `search_service.py`, `rag_chain.py`).
+- Ensure minimal boilerplate, clean abstractions, and comments.
+- Focus on scalability and readability.
