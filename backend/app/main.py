@@ -15,6 +15,10 @@ from .api.routes import router
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan events."""
+    # Load environment variables
+    from .core.utils import load_environment
+    load_environment()
+    
     # Startup
     settings = get_settings()
     setup_logging("INFO" if not settings.debug else "DEBUG")

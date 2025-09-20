@@ -4,8 +4,18 @@ Utility functions for the FastAPI backend.
 
 import logging
 import sys
+import os
 from typing import Any, Dict, Optional
 from datetime import datetime
+from dotenv import load_dotenv
+
+
+def load_environment() -> None:
+    """Load environment variables from .env file."""
+    env_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), ".env")
+    load_dotenv(env_path)
+    logger = logging.getLogger(__name__)
+    logger.info(f"Loaded environment from: {env_path}")
 
 
 def setup_logging(level: str = "INFO") -> None:
