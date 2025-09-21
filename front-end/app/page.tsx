@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { AtSign, ChevronDown, CornerDownLeft, Search } from 'lucide-react';
+import { ChatApi, type ChatResponse } from '@/lib/api/chatApi';
 
 export default function Home() {
   const [query, setQuery] = useState('');
@@ -10,6 +11,9 @@ export default function Home() {
   const [currentSampleIndex, setCurrentSampleIndex] = useState(0);
   const [displayedText, setDisplayedText] = useState('');
   const [isTyping, setIsTyping] = useState(true);
+  const [response, setResponse] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const samplePrompts = [
     "How do I create a dashboard for monitoring CPU usage?",
@@ -17,12 +21,98 @@ export default function Home() {
     "Help me troubleshoot high memory usage alerts"
   ];
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Cleanup function for aborting ongoing requests
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
+
+  const processStream = async (stream: ReadableStream<ChatResponse>) => {
+    const reader = stream.getReader();
+    const decoder = new TextDecoder();
+    let accumulatedResponse = '';
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        // Process the chunk
+        const chunk = decoder.decode(value as BufferSource);
+        const lines = chunk.split('\n');
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const content = line.slice(6).trim();
+            
+            try {
+              // Try to parse as JSON first
+              const data = JSON.parse(content);
+              if (data.content) {
+                accumulatedResponse += data.content;
+                setResponse(accumulatedResponse);
+              }
+              if (data.type === 'error') {
+                setError(data.message || 'An error occurred');
+                break;
+              }
+            } catch (e) {
+              // If JSON parsing fails, treat it as plain text
+              if (content) {
+                accumulatedResponse += content + '\n';
+                setResponse(accumulatedResponse);
+              }
+            }
+          }
+        }
+      }
+    } catch (err) {
+      const error = err as Error;
+      if (error.name === 'AbortError') {
+        console.log('Request aborted');
+      } else {
+        console.error('Stream reading error:', error);
+        setError('Error reading response stream');
+      }
+    } finally {
+      reader.releaseLock();
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (query.trim()) {
-      setIsLoading(true);
-      // Simulate API call
-      setTimeout(() => setIsLoading(false), 3000);
+    if (!query.trim()) return;
+
+    // Clear previous response and error
+    setResponse('');
+    setError(null);
+    setIsLoading(true);
+
+    // Abort previous request if exists
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
+    // Create new AbortController for this request
+    abortControllerRef.current = new AbortController();
+
+    try {
+      const stream = await ChatApi.streamChat({
+        query: query.trim(),
+        useSearch: webSearchEnabled
+      });
+
+      await processStream(stream);
+    } catch (err) {
+      const error = err as Error;
+      console.error('Chat request error:', error);
+      setError(error.message || 'Failed to get response');
+    } finally {
+      setIsLoading(false);
+      abortControllerRef.current = null;
     }
   };
 
@@ -182,6 +272,21 @@ export default function Home() {
           </form>
         </div>
         
+        {/* Response or Error Display */}
+        {(response || error) && (
+          <div className="mt-8 max-w-3xl mx-auto">
+            <div className={`p-6 rounded-xl backdrop-blur-sm ${
+              error ? 'bg-red-900/20 border border-red-500/50' : 'bg-gray-900/50'
+            }`}>
+              {error ? (
+                <div className="text-red-400">{error}</div>
+              ) : (
+                <div className="text-gray-200 whitespace-pre-wrap">{response}</div>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Subtle hint text */}
         <p className="text-gray-500 text-sm mt-12">
           Press <kbd className="px-2 py-1 bg-gray-800 rounded text-xs">Enter</kbd> to send or use the dropdown for quick actions
