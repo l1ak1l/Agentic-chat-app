@@ -65,10 +65,12 @@ def create_app() -> FastAPI:
     # Add CORS middleware
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=settings.cors_origins,
+        allow_origins=settings.cors_origins if isinstance(settings.cors_origins, list) else ["http://localhost:3000"],
         allow_credentials=True,
-        allow_methods=settings.cors_methods,
-        allow_headers=settings.cors_headers,
+        allow_methods=settings.cors_methods if isinstance(settings.cors_methods, list) else ["GET", "POST", "OPTIONS"],
+        allow_headers=settings.cors_headers if isinstance(settings.cors_headers, list) else ["*"],
+        expose_headers=["Content-Type", "Authorization"],
+        max_age=3600,
     )
     
     # Include routers

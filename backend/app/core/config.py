@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     
     # Server Configuration
     host: str = "0.0.0.0"
-    port: int = 5000
+    port: int = 8000
     debug: bool = False
     
     # CORS Configuration
